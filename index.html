@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="color-scheme" content="dark">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#0d0d0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>AMYLO - Live v1</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -457,6 +463,13 @@ ${conversationText}
     } finally {
       document.getElementById('sendBtn').disabled = false;
     }
+  }  // ---- تسجيل Service Worker باش يخدم PWA ----
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch((e) => {
+        console.log('تعذر تسجيل Service Worker:', e.message);
+      });
+    });
   }
 </script>
 </body>
