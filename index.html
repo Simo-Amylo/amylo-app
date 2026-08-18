@@ -145,7 +145,7 @@
 
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-box">
-      <label>Gemini API Key</label>
+      <label>API Key</label>
       <input type="password" id="apiKeyInput" placeholder="الصق مفتاحك هنا">
       <button onclick="saveKey()">حفظ والبدء</button>
       <p class="settings-note">
@@ -425,10 +425,16 @@ ${conversationText}
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'خطأ غير معروف من الخادم');
+      if (!res.ok) {
+        const rawMsg = data.error?.message || '';
+        if (res.status === 429 || /quota/i.test(rawMsg)) {
+          throw new Error('وصلتي للحد اليومي المجاني ديال المفتاح ديالك. عاود المحاولة غدا، أو فعّل الفوترة (Billing) فحساب Google AI Studio ديالك باش يزيد الحد.');
+        }
+        throw new Error(rawMsg || 'خطأ غير معروف من الخادم');
+      }
 
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error('لم يصل رد صالح من Gemini');
+      if (!rawText) throw new Error('لم يصل رد صالح، جرب مرة أخرى');
 
       let parsed;
       try {
