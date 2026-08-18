@@ -121,7 +121,10 @@
 
   <div class="header">
     <h1 style="background: linear-gradient(135deg, #d4af37, #f2d675); -webkit-background-clip: text; background-clip: text; color: transparent;">AMYLO — Live v1</h1>
-    <button class="settings-btn" style="border-color: rgba(212,175,55,0.4);" onclick="document.getElementById('settingsPanel').classList.add('open')">⚙️ API Key</button>
+    <div style="display: flex; gap: 8px;">
+      <button id="installBtn" class="settings-btn" style="display:none; border-color: rgba(212,175,55,0.5); background: rgba(212,175,55,0.12);" onclick="installApp()">📲 ثبت التطبيق</button>
+      <button class="settings-btn" style="border-color: rgba(212,175,55,0.4);" onclick="document.getElementById('settingsPanel').classList.add('open')">⚙️ API Key</button>
+    </div>
   </div>
 
   <div class="stage">
@@ -267,7 +270,17 @@
 
   // ---- إعداد المفتاح ----
   const KEY_STORAGE = 'amylo_gemini_key';
-  function getKey() { return localStorage.getItem(KEY_STORAGE) || ''; }
+
+  // ⚠️ مفتاح افتراضي مؤقت للمختبرين — ضع مفتاحك هنا بين علامتي التنصيص قبل الرفع
+  // مهم: امسحو أو ألغيه (revoke) من Google AI Studio بعد ما تخلص مرحلة الاختبار
+  const DEFAULT_API_KEY = "ضع_مفتاحك_هنا";
+
+  function getKey() {
+    const personal = localStorage.getItem(KEY_STORAGE);
+    if (personal) return personal;
+    if (DEFAULT_API_KEY && DEFAULT_API_KEY !== "ضع_مفتاحك_هنا") return DEFAULT_API_KEY;
+    return '';
+  }
   function saveKey() {
     const val = document.getElementById('apiKeyInput').value.trim();
     if (val) {
@@ -473,7 +486,27 @@ ${conversationText}
     } finally {
       document.getElementById('sendBtn').disabled = false;
     }
-  }  // ---- تسجيل Service Worker باش يخدم PWA ----
+  }  // ---- زر تثبيت التطبيق ----
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'inline-block';
+  });
+  async function installApp() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('installBtn').style.display = 'none';
+  }
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+
+  // ---- تسجيل Service Worker باش يخدم PWA ----
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./service-worker.js').catch((e) => {
