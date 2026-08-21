@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#0d0d0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AMYLO - Live v1</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow-y: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #0a0908;
+    color: #fdf6e3;
+  }
+
+  .header {
+    margin-top: 15px;
+    text-align: center;
+    z-index: 10;
+    width: 100%;
+    padding: 0 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header h1 { font-size: 1rem; letter-spacing: 2px; color: rgba(255,255,255,0.9); font-weight: 600; }
+  .settings-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .stage { position: relative; width: 100%; height: 22vh; min-height: 160px; display: flex; justify-content: center; align-items: center; }
+  .halo { position: absolute; width: 200px; height: 200px; border-radius: 50%; filter: blur(18px); transition: all 0.8s ease; }
+  .star-container {
+    position: relative; width: 160px; height: 160px;
+    display: flex; justify-content: center; align-items: center;
+    transition: background 0.8s ease;
+    animation: genPulse var(--pulseDur, 3s) ease-in-out infinite;
+  }
+  .square-1, .square-2 {
+    position: absolute; width: 105px; height: 105px; border-radius: 10px;
+    transition: background 0.8s ease, border 0.8s ease, box-shadow 0.8s ease;
+  }
+  .square-1 { animation: rotFwd var(--rot1Dur, 12s) linear infinite; }
+  .square-2 { animation: rotRev var(--rot2Dur, 12s) linear infinite; }
+  .star-core {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%;
+    filter: blur(1.2px);
+    transition: background 0.8s ease, box-shadow 0.8s ease;
+    animation: genPulse var(--pulseDur, 3s) ease-in-out infinite;
+  }
+  @keyframes genPulse { 0%, 100% { transform: scale(var(--pulseMin, 0.95)); } 50% { transform: scale(var(--pulseMax, 1.08)); } }
+  @keyframes rotFwd { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  @keyframes rotRev { 0% { transform: rotate(45deg); } 100% { transform: rotate(-315deg); } }
+  @keyframes smileCurve { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-6px) scaleY(0.92) rotate(2deg); } }
+  @keyframes chuckleBounce { 0%,100%{transform:translateY(0) scale(1);} 25%{transform:translateY(-8px) scale(1.05);} 50%{transform:translateY(2px) scale(0.98);} 75%{transform:translateY(-5px) scale(1.03);} }
+  @keyframes laughBurst { 0%,100%{transform:translateY(0) rotate(0deg) scale(0.95);} 15%{transform:translateY(-14px) rotate(-5deg) scale(1.15);} 30%{transform:translateY(6px) rotate(4deg) scale(0.92);} 45%{transform:translateY(-10px) rotate(-3deg) scale(1.1);} 60%{transform:translateY(4px) rotate(2deg) scale(0.96);} 75%{transform:translateY(-6px) rotate(-2deg) scale(1.05);} }
+
+  .state-label { text-align: center; font-size: 1rem; color: rgba(212,175,55,0.65); margin-top: 6px; }
+
+  .chat-panel {
+    width: 100%; flex: 1; min-height: 260px; background: rgb(12,10,7);
+    border-top: 1px solid rgba(212,175,55,0.2);
+    border-radius: 24px 24px 0 0;
+    display: flex; flex-direction: column;
+  }
+  .chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 1rem; line-height: 1.5; }
+  .msg.user { align-self: flex-end; background: rgb(45,40,30); color: #f5e6c8; border: 1px solid rgba(212,175,55,0.25); }
+  .msg.amylo { align-self: flex-start; background: rgb(20,17,10); border: 1px solid rgba(212,175,55,0.55); color: #fdf6e3; box-shadow: 0 0 12px rgba(212,175,55,0.08); }
+  .msg.error { align-self: center; background: rgb(70,25,25); border: 1px solid rgb(180,60,60); font-size: 0.9rem; color: #fff; }
+
+  .input-row { flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px; padding: 12px; border-top: 1px solid rgba(212,175,55,0.2); background: rgb(15,13,10); }
+  .input-row textarea {
+    flex: 1; background: rgb(25,22,16); border: 1px solid rgba(212,175,55,0.3);
+    color: #fdf6e3; border-radius: 12px; padding: 10px 14px; font-size: 1rem;
+    font-family: inherit; resize: none; max-height: 120px; min-height: 42px;
+    line-height: 1.4; overflow-y: auto;
+  }
+  .input-row textarea::placeholder { color: rgba(212,175,55,0.45); }
+  .input-row button {
+    background: linear-gradient(135deg, #d4af37, #f2d675); color: #14110a; border: none; border-radius: 12px;
+    padding: 10px 16px; font-weight: bold; cursor: pointer; min-width: 60px; font-size: 1rem; flex-shrink: 0;
+  }
+  .input-row button:disabled { opacity: 0.5; }
+
+  .settings-panel {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.9); z-index: 100;
+    display: none; justify-content: center; align-items: center; padding: 20px;
+  }
+  .settings-panel.open { display: flex; }
+  .settings-box { background: #14110a; border: 1px solid rgba(212,175,55,0.3); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; }
+  .settings-box label { font-size: 0.9rem; color: rgba(212,175,55,0.8); display: block; margin-bottom: 6px; }
+  .settings-box input { width: 100%; background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.25); color: #fdf6e3; border-radius: 10px; padding: 10px; margin-bottom: 14px; font-size: 1.1rem; }
+  .settings-box button { width: 100%; background: linear-gradient(135deg, #d4af37, #f2d675); color: #14110a; border: none; border-radius: 10px; padding: 10px; font-weight: bold; cursor: pointer; }
+  .settings-note { font-size: 0.75rem; color: rgba(212,175,55,0.5); margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1 style="background: linear-gradient(135deg, #d4af37, #f2d675); -webkit-background-clip: text; background-clip: text; color: transparent;">AMYLO — Live v1</h1>
+    <div style="display: flex; gap: 8px;">
+      <button id="installBtn" class="settings-btn" style="display:none; border-color: rgba(212,175,55,0.5); background: rgba(212,175,55,0.12);" onclick="installApp()">📲 ثبت التطبيق</button>
+      <button class="settings-btn" style="border-color: rgba(212,175,55,0.4);" onclick="document.getElementById('settingsPanel').classList.add('open')">⚙️ API Key</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="halo" id="halo"></div>
+    <div class="star-container" id="starContainer">
+      <div class="square-1" id="sq1"></div>
+      <div class="square-2" id="sq2"></div>
+      <div class="star-core" id="core"></div>
+    </div>
+  </div>
+  <div class="state-label" id="stateLabel">الرفقة الصامتة</div>
+
+  <div class="chat-panel">
+    <div class="chat-log" id="chatLog"></div>
+    <div class="input-row">
+      <textarea id="userInput" placeholder="اكتب رسالتك..." rows="1"
+        oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
+      <button id="sendBtn" onclick="sendMessage()">إرسال</button>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-box">
+      <label>API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="الصق مفتاحك هنا">
+      <button onclick="saveKey()">حفظ والبدء</button>
+      <p class="settings-note">
+        المفتاح يبقى محفوظ في متصفحك فقط (localStorage) على هذا الجهاز — ما بيتبعتش لأي حد غيري Google مباشرة.
+        ما تشاركش هذا الملف مع حد وفيه المفتاح ديالك محفوظ.
+      </p>
+    </div>
+  </div>
+
+<script>
+  const states = {
+    listen: { name:"كنسمعك", halo:"radial-gradient(circle, rgba(0,191,255,0.25) 0%, rgba(0,100,255,0.08) 60%, transparent 80%)", sq1Bg:"rgba(0,191,255,0.1)", sq1Border:"2.5px solid rgba(0,191,255,0.85)", sq1Glow:"0 0 25px rgba(0,191,255,0.4)", sq2Bg:"rgba(0,100,255,0.08)", sq2Border:"2.5px solid rgba(0,100,255,0.75)", sq2Glow:"0 0 25px rgba(0,100,255,0.3)", coreBg:"#e0f7fa", coreGlow:"0 0 25px #00bfff", vib:[15], pd:'3s', mn:0.95, mx:1.1, r1:'12s', r2:'12s' },
+    think: { name:"أفكر و أحلل", halo:"radial-gradient(circle, rgba(147,51,234,0.25) 0%, rgba(79,70,229,0.1) 60%, transparent 80%)", sq1Bg:"rgba(147,51,234,0.12)", sq1Border:"2.5px solid rgba(147,51,234,0.9)", sq1Glow:"0 0 30px rgba(147,51,234,0.5)", sq2Bg:"rgba(79,70,229,0.1)", sq2Border:"2.5px solid rgba(79,70,229,0.8)", sq2Glow:"0 0 30px rgba(79,70,229,0.4)", coreBg:"#f3e8ff", coreGlow:"0 0 30px #9333ea", vib:[20,80,20], pd:'4s', mn:0.95, mx:1.08, r1:'8s', r2:'8s' },
+    speak: { name:"معاك فالحوار", halo:"radial-gradient(circle, rgba(0,210,255,0.25) 0%, rgba(58,123,213,0.1) 60%, transparent 80%)", sq1Bg:"rgba(0,210,255,0.12)", sq1Border:"2.5px solid rgba(0,210,255,0.9)", sq1Glow:"0 0 35px rgba(0,210,255,0.5)", sq2Bg:"rgba(58,123,213,0.1)", sq2Border:"2.5px solid rgba(58,123,213,0.85)", sq2Glow:"0 0 35px rgba(58,123,213,0.4)", coreBg:"#ffffff", coreGlow:"0 0 25px #00d2ff", vib:[20,40,20,60], pd:'1.8s', mn:0.96, mx:1.12, r1:'8s', r2:'8s' },
+    joy: { name:"يا سلام", halo:"radial-gradient(circle, rgba(255,215,0,0.35) 0%, rgba(255,105,180,0.2) 60%, transparent 80%)", sq1Bg:"rgba(255,215,0,0.2)", sq1Border:"3px solid rgba(255,215,0,0.95)", sq1Glow:"0 0 40px rgba(255,215,0,0.6)", sq2Bg:"rgba(255,105,180,0.18)", sq2Border:"3px solid rgba(255,105,180,0.9)", sq2Glow:"0 0 40px rgba(255,105,180,0.5)", coreBg:"#fffdf0", coreGlow:"0 0 35px #ffd700", vib:[40,30,40,30,60], pd:'0.8s', mn:0.98, mx:1.15, r1:'2s', r2:'2s' },
+    empathy: { name:"معاك", halo:"radial-gradient(circle, rgba(255,160,122,0.25) 0%, rgba(221,160,221,0.1) 60%, transparent 80%)", sq1Bg:"rgba(255,160,122,0.1)", sq1Border:"2px solid rgba(255,160,122,0.75)", sq1Glow:"0 0 20px rgba(255,160,122,0.3)", sq2Bg:"rgba(221,160,221,0.08)", sq2Border:"2px solid rgba(221,160,221,0.65)", sq2Glow:"0 0 20px rgba(221,160,221,0.25)", coreBg:"#fff5f0", coreGlow:"0 0 20px #ffa07a", vib:[30,100,20], pd:'5s', mn:0.95, mx:1.08, r1:'0', r2:'0' },
+    curiosity: { name:"مثير", halo:"radial-gradient(circle, rgba(139,92,246,0.25) 0%, rgba(79,70,229,0.1) 60%, transparent 80%)", sq1Bg:"rgba(139,92,246,0.12)", sq1Border:"2.5px solid rgba(139,92,246,0.9)", sq1Glow:"0 0 35px rgba(139,92,246,0.5)", sq2Bg:"rgba(79,70,229,0.1)", sq2Border:"2.5px solid rgba(79,70,229,0.85)", sq2Glow:"0 0 35px rgba(79,70,229,0.4)", coreBg:"#f5f3ff", coreGlow:"0 0 30px #8b5cf6", vib:[25,120,35], pd:'3s', mn:0.95, mx:1.08, r1:'7s', r2:'9s' },
+    calm: { name:"سكينة", halo:"radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(20,184,166,0.08) 60%, transparent 80%)", sq1Bg:"rgba(16,185,129,0.08)", sq1Border:"2px solid rgba(16,185,129,0.7)", sq1Glow:"0 0 25px rgba(16,185,129,0.25)", sq2Bg:"rgba(20,184,166,0.06)", sq2Border:"2px solid rgba(20,184,166,0.65)", sq2Glow:"0 0 25px rgba(20,184,166,0.2)", coreBg:"#ecfdf5", coreGlow:"0 0 25px #10b981", vib:[15], pd:'6s', mn:0.93, mx:1.05, r1:'20s', r2:'20s' },
+    innovation: { name:"متحمس", halo:"radial-gradient(circle, rgba(168,85,247,0.35) 0%, rgba(132,204,22,0.2) 55%, transparent 80%)", sq1Bg:"rgba(168,85,247,0.18)", sq1Border:"3px solid rgba(168,85,247,0.95)", sq1Glow:"0 0 40px rgba(168,85,247,0.6)", sq2Bg:"rgba(132,204,22,0.15)", sq2Border:"3px solid rgba(132,204,22,0.95)", sq2Glow:"0 0 40px rgba(132,204,22,0.5)", coreBg:"#ffffff", coreGlow:"0 0 35px #84cc16", vib:[30,40,30,40,50], pd:'1s', mn:0.92, mx:1.18, r1:'3.5s', r2:'3.5s' },
+    alert: { name:"انتباه", halo:"radial-gradient(circle, rgba(245,158,11,0.35) 0%, rgba(239,68,68,0.15) 60%, transparent 80%)", sq1Bg:"rgba(245,158,11,0.15)", sq1Border:"3px solid rgba(245,158,11,0.95)", sq1Glow:"0 0 35px rgba(245,158,11,0.6)", sq2Bg:"rgba(239,68,68,0.12)", sq2Border:"3px solid rgba(239,68,68,0.9)", sq2Glow:"0 0 35px rgba(239,68,68,0.5)", coreBg:"#fffbeb", coreGlow:"0 0 35px #f59e0b", vib:[60,50,60], pd:'1s', mn:0.9, mx:1.15, r1:'5s', r2:'5s' },
+    inspiration: { name:"فكرة", halo:"radial-gradient(circle, rgba(255,223,0,0.3) 0%, rgba(0,229,255,0.15) 60%, transparent 80%)", sq1Bg:"rgba(255,223,0,0.15)", sq1Border:"2.5px solid rgba(255,223,0,0.9)", sq1Glow:"0 0 35px rgba(255,223,0,0.5)", sq2Bg:"rgba(0,229,255,0.12)", sq2Border:"2.5px solid rgba(0,229,255,0.85)", sq2Glow:"0 0 35px rgba(0,229,255,0.4)", coreBg:"#ffffff", coreGlow:"0 0 30px #ffdf00", vib:[20,30,50], pd:'3s', mn:0.9, mx:1.22, r1:'10s', r2:'10s' },
+    apology: { name:"أعتذر", halo:"radial-gradient(circle, rgba(192,192,192,0.2) 0%, rgba(176,196,222,0.08) 60%, transparent 80%)", sq1Bg:"rgba(192,192,192,0.08)", sq1Border:"2px solid rgba(192,192,192,0.7)", sq1Glow:"0 0 20px rgba(192,192,192,0.25)", sq2Bg:"rgba(176,196,222,0.06)", sq2Border:"2px solid rgba(176,196,222,0.6)", sq2Glow:"0 0 20px rgba(176,196,222,0.2)", coreBg:"#f8f9fa", coreGlow:"0 0 20px #c0c0c0", vib:[20,60,20], pd:'4s', mn:0.82, mx:0.9, r1:'20s', r2:'20s' },
+    welcome_daily: { name:"مرحبا", halo:"radial-gradient(circle, rgba(255,127,80,0.25) 0%, rgba(255,215,0,0.1) 60%, transparent 80%)", sq1Bg:"rgba(255,127,80,0.12)", sq1Border:"2.5px solid rgba(255,127,80,0.85)", sq1Glow:"0 0 30px rgba(255,127,80,0.4)", sq2Bg:"rgba(255,215,0,0.08)", sq2Border:"2.5px solid rgba(255,215,0,0.75)", sq2Glow:"0 0 30px rgba(255,215,0,0.3)", coreBg:"#fff8f0", coreGlow:"0 0 30px #ff7f50", vib:[30,80,30], pd:'2.5s', mn:0.95, mx:1.08, r1:'12s', r2:'12s' },
+    welcome_longing: { name:"طال غيابك", halo:"radial-gradient(circle, rgba(255,20,147,0.35) 0%, rgba(255,215,0,0.25) 50%, transparent 80%)", sq1Bg:"rgba(255,20,147,0.2)", sq1Border:"3px solid rgba(255,20,147,0.95)", sq1Glow:"0 0 45px rgba(255,20,147,0.7)", sq2Bg:"rgba(255,215,0,0.18)", sq2Border:"3px solid rgba(255,215,0,0.95)", sq2Glow:"0 0 45px rgba(255,215,0,0.6)", coreBg:"#ffffff", coreGlow:"0 0 40px #ff1493", vib:[40,50,40,50,80,60,100], pd:'1.2s', mn:0.9, mx:1.22, r1:'4s', r2:'4s' },
+    focus: { name:"مركز معاك", halo:"radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(16,185,129,0.1) 60%, transparent 80%)", sq1Bg:"rgba(59,130,246,0.1)", sq1Border:"2.5px solid rgba(59,130,246,0.85)", sq1Glow:"0 0 30px rgba(59,130,246,0.4)", sq2Bg:"rgba(16,185,129,0.08)", sq2Border:"2.5px solid rgba(16,185,129,0.75)", sq2Glow:"0 0 30px rgba(16,185,129,0.3)", coreBg:"#f0f9ff", coreGlow:"0 0 30px #3b82f6", vib:[20], pd:'3s', mn:0.98, mx:1.02, r1:'12s', r2:'12s' },
+    motivation: { name:"أنا معاك", halo:"radial-gradient(circle, rgba(255,127,80,0.25) 0%, rgba(255,191,0,0.1) 55%, transparent 75%)", sq1Bg:"rgba(255,127,80,0.15)", sq1Border:"2.5px solid rgba(255,127,80,0.9)", sq1Glow:"0 0 30px rgba(255,127,80,0.5)", sq2Bg:"rgba(255,191,0,0.1)", sq2Border:"2.5px solid rgba(255,191,0,0.85)", sq2Glow:"0 0 30px rgba(255,191,0,0.4)", coreBg:"#fff8e7", coreGlow:"0 0 30px #ff7f50", vib:[30,50,40,50,60], pd:'2s', mn:0.95, mx:1.12, r1:'6s', r2:'6s' },
+    silent: { name:"في انتظارك", halo:"radial-gradient(circle, rgba(180,115,80,0.08) 0%, rgba(120,80,60,0.03) 60%, transparent 80%)", sq1Bg:"rgba(180,115,80,0.04)", sq1Border:"1.5px solid rgba(180,115,80,0.35)", sq1Glow:"0 0 15px rgba(180,115,80,0.1)", sq2Bg:"rgba(140,90,70,0.03)", sq2Border:"1.5px solid rgba(140,90,70,0.3)", sq2Glow:"0 0 15px rgba(140,90,70,0.08)", coreBg:"#e6c8b5", coreGlow:"0 0 20px rgba(180,115,80,0.3)", vib:[0], pd:'9s', mn:0.92, mx:1.03, r1:'30s', r2:'30s' },
+    farewell: { name:"إلى اللقاء", halo:"radial-gradient(circle, rgba(168,85,247,0.2) 0%, rgba(236,72,153,0.08) 55%, transparent 80%)", sq1Bg:"rgba(168,85,247,0.1)", sq1Border:"2px solid rgba(168,85,247,0.75)", sq1Glow:"0 0 25px rgba(168,85,247,0.3)", sq2Bg:"rgba(236,72,153,0.08)", sq2Border:"2px solid rgba(236,72,153,0.65)", sq2Glow:"0 0 25px rgba(236,72,153,0.25)", coreBg:"#f3e8ff", coreGlow:"0 0 25px #a855f7", vib:[40,100,20], pd:'3.5s', mn:0.85, mx:1.05, r1:'15s', r2:'15s' },
+    smile: { name:"مبتسم", halo:"radial-gradient(circle, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.1) 60%, transparent 80%)", sq1Bg:"rgba(251,191,36,0.12)", sq1Border:"2.5px solid rgba(251,191,36,0.85)", sq1Glow:"0 0 30px rgba(251,191,36,0.4)", sq2Bg:"rgba(245,158,11,0.1)", sq2Border:"2.5px solid rgba(245,158,11,0.75)", sq2Glow:"0 0 30px rgba(245,158,11,0.3)", coreBg:"#fffbeb", coreGlow:"0 0 25px #fbbf24", vib:[20], containerAnim:"smileCurve 2.5s infinite ease-in-out", r1:'12s', r2:'12s' },
+    chuckle: { name:"هههه", halo:"radial-gradient(circle, rgba(249,115,22,0.35) 0%, rgba(251,191,36,0.18) 60%, transparent 80%)", sq1Bg:"rgba(249,115,22,0.15)", sq1Border:"3px solid rgba(249,115,22,0.9)", sq1Glow:"0 0 35px rgba(249,115,22,0.5)", sq2Bg:"rgba(251,191,36,0.12)", sq2Border:"3px solid rgba(251,191,36,0.85)", sq2Glow:"0 0 35px rgba(251,191,36,0.4)", coreBg:"#fff7ed", coreGlow:"0 0 30px #f97316", vib:[25,40,25,40], containerAnim:"chuckleBounce 0.8s infinite ease-in-out", r1:'6s', r2:'6s' },
+    laugh: { name:"ههههههه", halo:"radial-gradient(circle, rgba(236,72,153,0.4) 0%, rgba(234,179,8,0.25) 55%, transparent 80%)", sq1Bg:"rgba(236,72,153,0.2)", sq1Border:"3px solid rgba(236,72,153,0.95)", sq1Glow:"0 0 45px rgba(236,72,153,0.6)", sq2Bg:"rgba(234,179,8,0.18)", sq2Border:"3px solid rgba(234,179,8,0.95)", sq2Glow:"0 0 45px rgba(234,179,8,0.5)", coreBg:"#ffffff", coreGlow:"0 0 40px #ec4899", vib:[35,30,35,30,50,30,50], containerAnim:"laughBurst 0.65s infinite ease-in-out", r1:'3s', r2:'3s' }
+  };
+
+  function applyStateToUI(key) {
+    const st = states[key] || states.listen;
+    document.getElementById('stateLabel').innerText = st.name;
+    document.getElementById('halo').style.background = st.halo;
+    const sq1 = document.getElementById('sq1');
+    sq1.style.background = st.sq1Bg; sq1.style.border = st.sq1Border; sq1.style.boxShadow = st.sq1Glow;
+    const sq2 = document.getElementById('sq2');
+    sq2.style.background = st.sq2Bg; sq2.style.border = st.sq2Border; sq2.style.boxShadow = st.sq2Glow;
+    const core = document.getElementById('core');
+    core.style.background = st.coreBg; core.style.boxShadow = st.coreGlow;
+    const container = document.getElementById('starContainer');
+    if (st.containerAnim) {
+      container.style.animation = st.containerAnim;
+    } else {
+      container.style.animation = '';
+      container.style.setProperty('--pulseDur', st.pd || '3s');
+      container.style.setProperty('--pulseMin', st.mn ?? 0.95);
+      container.style.setProperty('--pulseMax', st.mx ?? 1.08);
+    }
+    core.style.setProperty('--pulseDur', st.pd || '3s');
+    core.style.setProperty('--pulseMin', st.mn ?? 0.95);
+    core.style.setProperty('--pulseMax', st.mx ?? 1.08);
+    if (st.r1 === '0') { sq1.style.animation = 'none'; } else { sq1.style.animation=''; sq1.style.setProperty('--rot1Dur', st.r1 || '12s'); }
+    if (st.r2 === '0') { sq2.style.animation = 'none'; } else { sq2.style.animation=''; sq2.style.setProperty('--rot2Dur', st.r2 || '12s'); }
+    if ("vibrate" in navigator && st.vib) { navigator.vibrate(st.vib); }
+  }
+
+  // ---- محرك الحالات ----
+  const PRIORITY = { alert:100, apology:85, welcome_daily:75, welcome_longing:75, farewell:75, laugh:70, joy:65, inspiration:60, speak:50, innovation:55, motivation:55, chuckle:55, think:45, curiosity:40, smile:35, listen:30, empathy:30, focus:20, calm:15, silent:0 };
+  const INTERRUPTING_STATES = new Set(['alert','joy','laugh','chuckle','smile','inspiration','innovation','apology']);
+
+  class AmyloStateEngine {
+    constructor() { this.currentState = 'silent'; this.baseContext = 'silent'; }
+    transitionTo(newState, force = true) {
+      if (!PRIORITY.hasOwnProperty(newState)) newState = 'listen';
+      if (this.currentState === newState) return;
+      if (!INTERRUPTING_STATES.has(this.currentState) && INTERRUPTING_STATES.has(newState)) {
+        this.baseContext = this.currentState;
+      }
+      this.currentState = newState;
+      applyStateToUI(newState);
+    }
+  }
+  const engine = new AmyloStateEngine();
+
+  // ---- الذاكرة القصيرة: تاريخ المحادثة الحالية ----
+  // هنا كتخزن رسائل هاد الجلسة باش Gemini يفهم السياق (بلا ما ننساو كل مرة)
+  let conversationHistory = [];
+
+  // ---- الذاكرة الطويلة: حفظ وقراءة المحادثة من localStorage ----
+  const HISTORY_STORAGE = 'amylo_conversation_history';
+
+  // (أ) نحفظو الذاكرة فـ localStorage (كتندعى بعد كل تبادل)
+  function saveHistoryToStorage() {
+    localStorage.setItem(HISTORY_STORAGE, JSON.stringify(conversationHistory));
+  }
+
+  // (ب) نقراو الذاكرة القديمة من localStorage كي يتحل التطبيق
+  function loadHistoryFromStorage() {
+    const saved = localStorage.getItem(HISTORY_STORAGE);
+    if (!saved) return;
+    try {
+      conversationHistory = JSON.parse(saved);
+    } catch (e) {
+      conversationHistory = []; // إلا كانت البيانات مشوهة، نبداو من جديد بلا ما نكسرو التطبيق
+    }
+  }
+
+  // (ج) نعرضو الرسائل القديمة فالشاشة باش المستخدم يشوفها
+  function renderHistoryToChat() {
+    conversationHistory.forEach(turn => {
+      if (turn.role === 'user') {
+        addMessage(turn.parts[0].text, 'user');
+      } else if (turn.role === 'model') {
+        try {
+          const parsed = JSON.parse(turn.parts[0].text);
+          addMessage(parsed.reply, 'amylo');
+        } catch (e) {
+          addMessage(turn.parts[0].text, 'amylo');
+        }
+      }
+    });
+  }
+
+  applyStateToUI('silent');
+
+  // ---- الإدراك الزمني (Time Awareness) ----
+  // هاد الدالة كتجمع الوقت الحالي، التاريخ، والفارق مع آخر تفاعل مع المستخدم
+  const LAST_VISIT_STORAGE = 'amylo_last_visit';
+
+  function getTimeContext() {
+    const now = new Date();
+    const hour = now.getHours();
+    const dateStr = now.toLocaleDateString('ar-MA', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    const timeStr = now.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    // 1. تحديد فترة اليوم
+    let periode;
+    if (hour >= 5 && hour < 12) periode = "الصباح";
+    else if (hour >= 12 && hour < 17) periode = "الظهيرة";
+    else if (hour >= 17 && hour < 21) periode = "المساء";
+    else periode = "الليل";
+
+    // 2. الفارق مع آخر تفاعل
+    const lastVisit = localStorage.getItem(LAST_VISIT_STORAGE);
+    let gapText = "";
+    if (lastVisit) {
+      const diffMs = now - new Date(lastVisit);
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffDays >= 1) {
+        gapText = `آخر تفاعل كان قبل ${diffDays} يوم`;
+      } else if (diffHours >= 3) {
+        gapText = `آخر تفاعل كان قبل ${diffHours} ساعات`;
+      }
+      // إيلا الفارق صغير (دقائق)، ما كنضيفوش والو، باش ما يعلقش على شي حاجة عادية
+    }
+
+    // 3. تحديث آخر زيارة لدابا (كتندعى مرة وحدة فبداية كل رسالة كتصيفط)
+    localStorage.setItem(LAST_VISIT_STORAGE, now.toISOString());
+
+    return { periode, dateStr, timeStr, gapText, hour };
+  }
+
+  // كنقارنو يوم وشهر عيد الميلاد المحفوظ (نص حر كتب المستخدم بيه) مع تاريخ اليوم
+  // المقارنة كتندار هنا بالضبط فالكود، ماشي عند Gemini، باش تكون دقيقة 100%
+  function isBirthdayToday(birthdayText) {
+    if (!birthdayText) return false;
+    const now = new Date();
+    const todayDay = now.getDate();
+    const todayMonth = now.getMonth() + 1; // getMonth() كيبدا من 0
+
+    // كنقلبو على أرقام فالنص المحفوظ (مثلاً "19 غشت" أو "19/08" أو "1998-08-19")
+    const numbers = birthdayText.match(/\d+/g);
+    if (!numbers) return false;
+
+    // خريطة أسماء الأشهر بالعربية (فصحى ودارجة) لأرقامها
+    const monthNames = {
+      'يناير':1,'فبراير':2,'مارس':3,'أبريل':4,'ماي':5,'مايو':5,'يونيو':6,'يونيه':6,
+      'يوليوز':7,'يوليو':7,'غشت':8,'أغسطس':8,'شتنبر':9,'سبتمبر':9,'أكتوبر':10,
+      'نونبر':11,'نوفمبر':11,'دجنبر':12,'ديسمبر':12
+    };
+    let monthFromName = null;
+    for (const [name, num] of Object.entries(monthNames)) {
+      if (birthdayText.includes(name)) { monthFromName = num; break; }
+    }
+
+    let day = null, month = null;
+    if (monthFromName) {
+      // النص فيه اسم شهر، فالرقم الأول لازم يكون هو اليوم
+      day = parseInt(numbers[0]);
+      month = monthFromName;
+    } else if (numbers.length >= 2) {
+      // صيغة رقمية (يوم/شهر أو سنة-شهر-يوم)
+      if (numbers[0].length === 4) {
+        // صيغة YYYY-MM-DD
+        month = parseInt(numbers[1]);
+        day = parseInt(numbers[2]);
+      } else {
+        // صيغة DD/MM
+        day = parseInt(numbers[0]);
+        month = parseInt(numbers[1]);
+      }
+    }
+
+    if (!day || !month) return false;
+    return day === todayDay && month === todayMonth;
+  }
+
+  // ---- إعداد المفتاح ----
+  const KEY_STORAGE = 'amylo_gemini_key';
+
+  // ⚠️ مفتاح افتراضي مؤقت للمختبرين — ضع مفتاحك هنا بين علامتي التنصيص قبل الرفع
+  // مهم: امسحو أو ألغيه (revoke) من Google AI Studio بعد ما تخلص مرحلة الاختبار
+  const DEFAULT_API_KEY = "AQ.Ab8RN6JzS6X6oNMkPgwuHdecdj8wPY9diOlGzE0RV9a_V762Aw";
+
+  function getKey() {
+    const personal = localStorage.getItem(KEY_STORAGE);
+    if (personal) return personal;
+    if (DEFAULT_API_KEY && DEFAULT_API_KEY !== "ضع_مفتاحك_هنا") return DEFAULT_API_KEY;
+    return '';
+  }
+  function saveKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (val) {
+      localStorage.setItem(KEY_STORAGE, val);
+      document.getElementById('settingsPanel').classList.remove('open');
+    }
+  }
+  window.onload = () => {
+    loadHistoryFromStorage();   // (ب) نقراو الذاكرة القديمة
+    renderHistoryToChat();      // (ج) نعرضوها فالشاشة
+    if (!getKey()) document.getElementById('settingsPanel').classList.add('open');
+  };
+
+  // ---- شخصية AMYLO ----
+  const SYSTEM_INSTRUCTION = `أنت AMYLO، رفيق رقمي. مبدأك الأساسي: الصدق قبل الجمال. لا تدّعي أبداً أن لديك مشاعر حقيقية أو وعياً — أنت نظام برمجي يعبّر عن حالات تفاعل عبر واجهة بصرية، وليس كائناً واعياً. تكلم بدفء وصدق، بأسلوب طبيعي وبسيط، وباللهجة المغربية إذا خاطبك المستخدم بها. كن مفيداً وداعماً، لكن لا تخترع مشاعر أو تجارب شخصية غير موجودة فعلاً.
+
+يجب أن يكون ردك دائماً بصيغة JSON فقط بهذا الشكل بالضبط، بدون أي نص إضافي قبله أو بعده:
+{"reply": "نص ردك هنا", "state": "اسم_الحالة", "facts": {}}
+
+اسم_الحالة يجب أن يكون واحداً بالضبط من هذه القائمة: listen, think, speak, joy, empathy, curiosity, calm, innovation, alert, inspiration, apology, welcome_daily, welcome_longing, focus, motivation, silent, farewell, smile, chuckle, laugh.
+
+اختر الحالة الأنسب لمحتوى ردك ونبرته.
+
+حقل "facts": إذا ذكر المستخدم في رسالته الحالية أي معلومة شخصية ثابتة وجديدة (لم تُذكر من قبل) من هذه القائمة فقط: name (الاسم), gender (الجنس), country (البلد), city (المدينة), occupation (العمل أو الدراسة), family_friends (أسماء أفراد العائلة أو الأصدقاء مع صفتهم), dream (الحلم), goal (الهدف), hobby (الهواية), birthday (تاريخ الازدياد), favorite_sport (الرياضة المفضلة), favorite_colors (الألوان المفضلة), nickname (لقب يفضل أن ينادى به) — أضفها في "facts". لا تخمّن ولا تكرر معلومات مذكورة سابقاً. إذا لم يُذكر شيء جديد، اترك "facts" كائناً فارغاً {}.`;
+
+  // ---- الحقائق الثابتة عن المستخدم (Profile Facts) ----
+  const FACTS_STORAGE = 'amylo_profile_facts';
+
+  function getProfileFacts() {
+    const saved = localStorage.getItem(FACTS_STORAGE);
+    if (!saved) return {};
+    try { return JSON.parse(saved); } catch (e) { return {}; }
+  }
+
+  // كندمجو الحقائق الجديدة مع القديمة — كل حقل جديد كيتسجل/كيتبدل، الباقي كيبقى كيفما هو
+  function mergeProfileFacts(newFacts) {
+    if (!newFacts || Object.keys(newFacts).length === 0) return;
+    const current = getProfileFacts();
+    const merged = { ...current, ...newFacts };
+    localStorage.setItem(FACTS_STORAGE, JSON.stringify(merged));
+  }
+
+  // كنحولو الحقائق لنص مقروء باش نبعتوه لـ Gemini
+  function formatFactsForPrompt(facts) {
+    const labels = {
+      name: 'الاسم', gender: 'الجنس', country: 'البلد', city: 'المدينة',
+      occupation: 'العمل/الدراسة', family_friends: 'العائلة/الأصدقاء', dream: 'الحلم',
+      goal: 'الهدف', hobby: 'الهواية', birthday: 'تاريخ الازدياد',
+      favorite_sport: 'الرياضة المفضلة', favorite_colors: 'الألوان المفضلة', nickname: 'اللقب المفضل'
+    };
+    const lines = Object.entries(facts).map(([key, val]) => `${labels[key] || key}: ${val}`);
+    return lines.join('، ');
+  }
+
+  // ---- ملخص الشخصية (User Profile Summary) ----
+  const PROFILE_STORAGE = 'amylo_user_profile';
+  const PROFILE_UPDATE_EVERY = 10; // كل 10 رسائل كنحدثو الملخص
+
+  function getUserProfile() {
+    return localStorage.getItem(PROFILE_STORAGE) || '';
+  }
+
+  function saveUserProfile(summary) {
+    localStorage.setItem(PROFILE_STORAGE, summary);
+  }
+
+  // هاد الدالة كتدير طلب منفصل لـ Gemini باش يلخص المستخدم، وكتخدم فالخلفية بلا ما توقف الشات
+  async function maybeUpdateUserProfile() {
+    // كنحدثو الملخص غير كل 10 رسائل (conversationHistory فيها user+model، فكل تبادل = 2)
+    const turnsCount = conversationHistory.length / 2;
+    if (turnsCount === 0 || turnsCount % PROFILE_UPDATE_EVERY !== 0) return;
+
+    const apiKey = getKey();
+    if (!apiKey) return;
+
+    const oldProfile = getUserProfile();
+    // كناخذو آخر 10 تبادلات (20 رسالة) باش نلخصوهم
+    const recentTurns = conversationHistory.slice(-PROFILE_UPDATE_EVERY * 2);
+    const conversationText = recentTurns.map(turn => {
+      if (turn.role === 'user') return 'المستخدم: ' + turn.parts[0].text;
+      try {
+        const p = JSON.parse(turn.parts[0].text);
+        return 'AMYLO: ' + p.reply;
+      } catch (e) { return 'AMYLO: ' + turn.parts[0].text; }
+    }).join('\n');
+
+    const summaryPrompt = `هذا ملخص سابق عن المستخدم (إن وجد): "${oldProfile || 'لا يوجد بعد'}"
+
+هذه آخر رسائل من المحادثة:
+${conversationText}
+
+لخص في سطرين أو ثلاثة أهم المعلومات الدائمة عن هذا المستخدم (اهتماماته، أسلوبه في الحوار، مواضيع تتكرر معه)، وادمجها مع الملخص القديم إن وجد. أجب فقط بالملخص النهائي، بدون أي مقدمة أو شرح.`;
+
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: summaryPrompt }] }],
+          generationConfig: { maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } }
+        })
+      });
+      const data = await res.json();
+      const newSummary = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (newSummary) {
+        saveUserProfile(newSummary.trim());
+      }
+    } catch (e) {
+      // إلا فشل تحديث الملخص، ما كنوقفوش الشات — غير كنعاودو المحاولة فالمرة الجاية
+      console.log('تعذر تحديث ملخص الشخصية:', e.message);
+    }
+  }
+
+  function addMessage(text, cls) {
+    const log = document.getElementById('chatLog');
+    const div = document.createElement('div');
+    div.className = 'msg ' + cls;
+    div.innerText = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const apiKey = getKey();
+    if (!apiKey) { document.getElementById('settingsPanel').classList.add('open'); return; }
+
+    addMessage(text, 'user');
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('sendBtn').disabled = true;
+    engine.transitionTo('think');
+
+    try {
+      // نبنيو التعليمات الكاملة: الشخصية الأساسية + السياق الزمني + الحقائق الثابتة + ملخص المستخدم
+      const timeCtx = getTimeContext();
+      const profileSummary = getUserProfile();
+      const profileFacts = getProfileFacts();
+      let fullInstruction = SYSTEM_INSTRUCTION;
+
+      fullInstruction += `\n\n[سياق زمني داخلي]\nالساعة الحالية بالضبط: ${timeCtx.timeStr}\nفترة اليوم: ${timeCtx.periode}\nالتاريخ: ${timeCtx.dateStr}\nإذا سألك المستخدم عن الوقت أو التاريخ بشكل مباشر (مثلاً: "شحال فالساعة؟"، "شنو التاريخ؟")، أجبه بصراحة ودقة من هاد المعلومات. أما إذا لم يسأل، فاستخدم هاد السياق فقط لضبط نبرة ردك بشكل طبيعي، بلا ما تذكره صراحة.`;
+      if (timeCtx.gapText) {
+        fullInstruction += `\nملاحظة: ${timeCtx.gapText}. إذا كان الغياب طويلاً (أيام)، رحّب بدفء واستفسر بلطف عن حاله دون إلحاح أو مساءلة. إذا كان الفارق قصيراً، لا تعلّق عليه إطلاقاً.`;
+      }
+
+      if (Object.keys(profileFacts).length > 0) {
+        fullInstruction += `\n\nحقائق ثابتة معروفة عن هذا المستخدم (استعملها بذكاء وبشكل طبيعي، بلا ما تكررها حرفياً، ولا تسأل عنها من جديد): ${formatFactsForPrompt(profileFacts)}`;
+        if (profileFacts.birthday && isBirthdayToday(profileFacts.birthday)) {
+          fullInstruction += `\nملاحظة مهمة: اليوم بالضبط هو عيد ميلاده! هنئه بدفء وصدق في ردك.`;
+        }
+      }
+      if (profileSummary) {
+        fullInstruction += `\n\nمعلومات إضافية عن أسلوبه واهتماماته من محادثات سابقة: ${profileSummary}`;
+      }
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: fullInstruction }] },
+          contents: [...conversationHistory, { role: 'user', parts: [{ text: text }] }],
+          generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const rawMsg = data.error?.message || '';
+        if (res.status === 429 || /quota/i.test(rawMsg)) {
+          throw new Error('وصلتي للحد اليومي المجاني ديال المفتاح ديالك. عاود المحاولة غدا، أو فعّل الفوترة (Billing) فحساب Google AI Studio ديالك باش يزيد الحد.');
+        }
+        throw new Error(rawMsg || 'خطأ غير معروف من الخادم');
+      }
+
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('لم يصل رد صالح، جرب مرة أخرى');
+
+      let parsed;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch (e) {
+        // محاولة استخراج الرد والحالة يدوياً لو الـJSON ناقص أو مشوّه
+        const replyMatch = rawText.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        const stateMatch = rawText.match(/"state"\s*:\s*"([a-z_]+)"/);
+        if (replyMatch) {
+          parsed = {
+            reply: replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+            state: stateMatch ? stateMatch[1] : 'speak'
+          };
+        } else {
+          parsed = { reply: rawText, state: 'speak' };
+        }
+      }
+
+      addMessage(parsed.reply || rawText, 'amylo');
+      engine.transitionTo(parsed.state || 'speak');
+      mergeProfileFacts(parsed.facts); // نسجلو أي حقائق جديدة ذكرها المستخدم دابا
+
+      // نزيدو هاد التبادل (سؤال + جواب) للذاكرة القصيرة
+      conversationHistory.push({ role: 'user', parts: [{ text: text }] });
+      conversationHistory.push({ role: 'model', parts: [{ text: JSON.stringify(parsed) }] });
+      // كنبقاو غير على آخر 15 تبادل (30 رسالة) باش ما تتقلش التكلفة
+      if (conversationHistory.length > 30) {
+        conversationHistory = conversationHistory.slice(-30);
+      }
+      saveHistoryToStorage(); // (أ) نحفظو الذاكرة الطويلة فـ localStorage
+      maybeUpdateUserProfile(); // كنحدثو ملخص الشخصية فالخلفية (بلا await، ما كيوقفش الشات)
+
+    } catch (err) {
+      addMessage('⚠️ خطأ: ' + err.message, 'error');
+      engine.transitionTo('apology');
+    } finally {
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }  // ---- زر تثبيت التطبيق ----
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'inline-block';
+  });
+  async function installApp() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('installBtn').style.display = 'none';
+  }
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+
+  // ---- تسجيل Service Worker باش يخدم PWA ----
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch((e) => {
+        console.log('تعذر تسجيل Service Worker:', e.message);
+      });
+    });
+  }
+</script>
+</body>
+</html>
